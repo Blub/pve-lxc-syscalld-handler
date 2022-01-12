@@ -18,7 +18,6 @@ pub mod client;
 pub mod error;
 pub mod fork;
 pub mod io;
-pub mod lxcseccomp;
 pub mod nsfd;
 pub mod poll_fn;
 pub mod process;
