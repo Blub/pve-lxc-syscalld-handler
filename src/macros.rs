@@ -73,11 +73,13 @@ macro_rules! io_format_err {
     };
 }
 
+/*
 macro_rules! io_bail {
     ($($msg:tt)*) => {
         return Err(::std::io::Error::new(::std::io::ErrorKind::Other, format!($($msg)*)));
     };
 }
+*/
 
 macro_rules! ready {
     ($expr:expr) => {{

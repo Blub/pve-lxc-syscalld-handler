@@ -271,4 +271,18 @@ impl PidFd {
     pub fn user_caps(&self) -> Result<UserCaps, Error> {
         UserCaps::new(self)
     }
+
+    pub fn peek_data(&self, address: usize) -> io::Result<usize> {
+        let mut data = 0usize;
+        c_try!(unsafe {
+            libc::syscall(
+                libc::SYS_ptrace,
+                libc::PTRACE_PEEKDATA,
+                self.get_pid(),
+                address as *mut usize,
+                &mut data as *mut _,
+            )
+        });
+        Ok(data)
+    }
 }

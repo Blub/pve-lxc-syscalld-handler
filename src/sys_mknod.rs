@@ -6,13 +6,13 @@ use nix::errno::Errno;
 use nix::sys::stat;
 
 use crate::fork::forking_syscall;
-use crate::lxcseccomp::ProxyMessageBuffer;
 use crate::process::PidFd;
 use crate::sc_libc_try;
+use crate::seccomp::Notification;
 use crate::syscall::SyscallStatus;
 use crate::tools::Fd;
 
-pub async fn mknod(msg: &ProxyMessageBuffer) -> Result<SyscallStatus, Error> {
+pub async fn mknod(msg: &Notification) -> Result<SyscallStatus, Error> {
     let mode = msg.arg_mode_t(1)?;
     let dev = msg.arg_dev_t(2)?;
     if !check_mknod_dev(mode, dev) {
@@ -25,7 +25,7 @@ pub async fn mknod(msg: &ProxyMessageBuffer) -> Result<SyscallStatus, Error> {
     do_mknodat(msg.pid_fd(), cwd, pathname, mode, dev).await
 }
 
-pub async fn mknodat(msg: &ProxyMessageBuffer) -> Result<SyscallStatus, Error> {
+pub async fn mknodat(msg: &Notification) -> Result<SyscallStatus, Error> {
     let mode = msg.arg_mode_t(2)?;
     let dev = msg.arg_dev_t(3)?;
     if !check_mknod_dev(mode, dev) {

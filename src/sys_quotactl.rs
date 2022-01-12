@@ -7,9 +7,9 @@ use anyhow::Error;
 use nix::errno::Errno;
 
 use crate::fork::forking_syscall;
-use crate::lxcseccomp::ProxyMessageBuffer;
 use crate::process::{IdMap, PidFd};
 use crate::sc_libc_try;
+use crate::seccomp::Notification;
 use crate::syscall::SyscallStatus;
 
 /*
@@ -57,7 +57,7 @@ struct nextdqblk {
     dqb_id: u32,
 }
 
-pub async fn quotactl(msg: &ProxyMessageBuffer) -> Result<SyscallStatus, Error> {
+pub async fn quotactl(msg: &Notification) -> Result<SyscallStatus, Error> {
     let cmd = msg.arg_int(0)?;
     let special = msg.arg_opt_c_string(1)?;
     // let _id = msg.arg_int(2)?;
@@ -99,7 +99,7 @@ struct dqinfo {
 }
 
 pub async fn q_getinfo(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
 ) -> Result<SyscallStatus, Error> {
@@ -107,6 +107,7 @@ pub async fn q_getinfo(
     let addr = msg.arg_caddr_t(3)? as u64;
 
     let caps = msg.pid_fd().user_caps()?;
+    let msgdata = &msg.data;
     Ok(forking_syscall(move || {
         caps.apply(&PidFd::current()?)?;
 
@@ -116,14 +117,14 @@ pub async fn q_getinfo(
             libc::quotactl(cmd, special, id, &mut data as *mut dqinfo as *mut i8)
         });
 
-        msg.mem_write_struct(addr, &data)?;
+        msgdata.mem_write_struct(addr, &data)?;
         Ok(SyscallStatus::Ok(0))
     })
     .await?)
 }
 
 pub async fn q_setinfo(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
 ) -> Result<SyscallStatus, Error> {
@@ -153,7 +154,7 @@ pub async fn q_setinfo(
 }
 
 pub async fn q_getfmt(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
 ) -> Result<SyscallStatus, Error> {
@@ -161,6 +162,7 @@ pub async fn q_getfmt(
     let addr = msg.arg_caddr_t(3)? as u64;
 
     let caps = msg.pid_fd().user_caps()?;
+    let msgdata = &msg.data;
     Ok(forking_syscall(move || {
         caps.apply(&PidFd::current()?)?;
 
@@ -168,14 +170,14 @@ pub async fn q_getfmt(
         let special = special.as_ref().map(|c| c.as_ptr()).unwrap_or(ptr::null());
         sc_libc_try!(unsafe { libc::quotactl(cmd, special, id, &mut data as *mut u32 as *mut i8) });
 
-        msg.mem_write_struct(addr, &data)?;
+        msgdata.mem_write_struct(addr, &data)?;
         Ok(SyscallStatus::Ok(0))
     })
     .await?)
 }
 
 pub async fn q_quotaon(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
 ) -> Result<SyscallStatus, Error> {
@@ -195,7 +197,7 @@ pub async fn q_quotaon(
 }
 
 pub async fn q_quotaoff(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
 ) -> Result<SyscallStatus, Error> {
@@ -213,11 +215,7 @@ pub async fn q_quotaoff(
     .await?)
 }
 
-fn uid_gid_arg(
-    msg: &ProxyMessageBuffer,
-    arg: u32,
-    kind: c_int,
-) -> Result<(c_int, Option<IdMap>), Error> {
+fn uid_gid_arg(msg: &Notification, arg: u32, kind: c_int) -> Result<(c_int, Option<IdMap>), Error> {
     let id = msg.arg_int(arg)?;
     let map = match kind {
         libc::USRQUOTA => msg.pid_fd().get_uid_map()?,
@@ -234,7 +232,7 @@ fn uid_gid_arg(
 }
 
 pub async fn q_getquota(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
     kind: c_int,
@@ -248,6 +246,7 @@ pub async fn q_getquota(
     let addr = msg.arg_caddr_t(3)? as u64;
 
     let caps = msg.pid_fd().user_caps()?;
+    let msgdata = &msg.data;
     Ok(forking_syscall(move || {
         caps.apply(&PidFd::current()?)?;
 
@@ -261,14 +260,14 @@ pub async fn q_getquota(
             )
         });
 
-        msg.mem_write_struct(addr, &data)?;
+        msgdata.mem_write_struct(addr, &data)?;
         Ok(SyscallStatus::Ok(0))
     })
     .await?)
 }
 
 pub async fn q_setquota(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
     kind: c_int,
@@ -300,7 +299,7 @@ pub async fn q_setquota(
 }
 
 pub async fn q_getnextquota(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
     kind: c_int,
@@ -314,6 +313,7 @@ pub async fn q_getnextquota(
     let addr = msg.arg_caddr_t(3)? as u64;
 
     let caps = msg.pid_fd().user_caps()?;
+    let msgdata = &msg.data;
     Ok(forking_syscall(move || {
         caps.apply(&PidFd::current()?)?;
 
@@ -334,14 +334,14 @@ pub async fn q_getnextquota(
                 as u32;
         }
 
-        msg.mem_write_struct(addr, &data)?;
+        msgdata.mem_write_struct(addr, &data)?;
         Ok(SyscallStatus::Ok(0))
     })
     .await?)
 }
 
 pub async fn q_sync(
-    msg: &ProxyMessageBuffer,
+    msg: &Notification,
     cmd: c_int,
     special: Option<CString>,
 ) -> Result<SyscallStatus, Error> {
