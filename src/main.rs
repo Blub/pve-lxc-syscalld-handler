@@ -138,14 +138,14 @@ async fn handle_client(socket: SeqPacketSocket) {
 }
 
 async fn client_main(socket: SeqPacketSocket) -> std::io::Result<()> {
-    use io::iovec::IoVecMut;
+    use std::io::IoSliceMut;
 
     // We expect the cookie and 1 seccomp fd per packet.
     let mut fd_buf = io::cmsg::buffer::<[RawFd; 1]>();
     let mut cookie = [0u8; 16];
     loop {
         let (datalen, cmsglen) = socket
-            .recvmsg_vectored(&mut [IoVecMut::new(&mut cookie)], &mut fd_buf)
+            .recvmsg_vectored(&mut [IoSliceMut::new(&mut cookie)], &mut fd_buf)
             .await?;
 
         // sanitize
